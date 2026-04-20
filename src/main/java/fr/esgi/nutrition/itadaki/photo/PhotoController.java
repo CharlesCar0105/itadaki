@@ -5,7 +5,9 @@ import fr.esgi.nutrition.itadaki.user.UserRepository;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -118,6 +120,26 @@ public class PhotoController {
                         .contentType(MediaType.parseMediaType(p.getContentType()))
                         .body(p.getImageData()))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/stats/daily")
+    public ResponseEntity<List<DailyCaloriesResponse>> dailyStats(Authentication authentication) {
+        User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
+
+        List<DailyCaloriesResponse> result = mealPhotoRepository
+                .findByUserOrderByUploadedAtDesc(user)
+                .stream()
+                .filter(p -> p.getStatus() == MealPhotoStatus.FINALIZED && p.getCalories() != null)
+                .collect(Collectors.groupingBy(
+                        p -> p.getUploadedAt().toLocalDate().toString(),
+                        Collectors.summingInt(MealPhoto::getCalories)
+                ))
+                .entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(e -> new DailyCaloriesResponse(e.getKey(), e.getValue()))
+                .toList();
+
+        return ResponseEntity.ok(result);
     }
 
     private HistoryResponse toHistoryResponse(MealPhoto p) {
