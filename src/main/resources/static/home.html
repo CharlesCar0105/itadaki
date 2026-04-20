@@ -4,24 +4,85 @@
     <meta charset="UTF-8">
     <title>Accueil - Itadaki</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 80px auto; text-align: center; }
-        h1 { color: #333; }
-        button { padding: 10px 20px; background: #d0021b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
-        button:hover { background: #a50017; }
+        body { font-family: sans-serif; max-width: 600px; margin: 60px auto; }
+        h1 { color: #333; text-align: center; }
+        .card { border: 1px solid #ddd; border-radius: 8px; padding: 24px; margin-bottom: 20px; }
+        .card h2 { margin-top: 0; color: #444; }
+        input[type="file"] { display: block; margin-bottom: 12px; }
+        button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .btn-primary { background: #4a90e2; color: white; }
+        .btn-primary:hover { background: #357ab8; }
+        .btn-danger { background: #d0021b; color: white; }
+        .btn-danger:hover { background: #a50017; }
+        #preview { max-width: 100%; max-height: 300px; display: none; margin-bottom: 12px; border-radius: 4px; }
+        #message { margin-top: 12px; }
+        .error { color: #d0021b; }
+        .success { color: #4caf50; }
+        .footer { text-align: right; }
     </style>
 </head>
 <body>
-    <h1>Bienvenue sur Itadaki</h1>
-    <p>Tu es connecté.</p>
-    <p><em>(L'upload de photos et l'historique arriveront ensuite.)</em></p>
-    <button id="logoutBtn">Se déconnecter</button>
+    <h1>Itadaki</h1>
+
+    <div class="card">
+        <h2>Analyser un plat</h2>
+        <img id="preview" alt="Aperçu de l'image">
+        <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp,.gif">
+        <button class="btn-primary" id="uploadBtn">Téléverser</button>
+        <div id="message"></div>
+    </div>
+
+    <div class="footer">
+        <button class="btn-danger" id="logoutBtn">Se déconnecter</button>
+    </div>
 
     <script>
+        const fileInput = document.getElementById('fileInput');
+        const preview = document.getElementById('preview');
+        const msg = document.getElementById('message');
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+            preview.src = URL.createObjectURL(file);
+            preview.style.display = 'block';
+        });
+
+        document.getElementById('uploadBtn').addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                msg.className = 'error';
+                msg.textContent = 'Sélectionne une image d\'abord';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/api/photos/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    msg.className = 'success';
+                    msg.textContent = `Photo "${data.filename}" uploadée avec succès (id: ${data.id})`;
+                } else {
+                    const text = await res.text();
+                    msg.className = 'error';
+                    msg.textContent = text;
+                }
+            } catch (err) {
+                msg.className = 'error';
+                msg.textContent = 'Erreur réseau';
+            }
+        });
+
         document.getElementById('logoutBtn').addEventListener('click', async () => {
             const res = await fetch('/api/auth/logout', { method: 'POST' });
-            if (res.ok) {
-                window.location.href = '/login.html';
-            }
+            if (res.ok) window.location.href = '/login.html';
         });
     </script>
 </body>
