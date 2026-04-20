@@ -3,79 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <title>Accueil - Itadaki</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 60px auto; }
-        h1 { color: #333; text-align: center; }
-        .card { border: 1px solid #ddd; border-radius: 8px; padding: 24px; margin-bottom: 20px; }
-        .card h2 { margin-top: 0; color: #444; }
-        input[type="file"] { display: block; margin-bottom: 12px; }
-        button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
-        .btn-primary { background: #0056b3; color: white; }
-        .btn-primary:hover { background: #004494; }
-        .btn-success { background: #2e7d32; color: white; }
-        .btn-success:hover { background: #1b5e20; }
-        .btn-danger { background: #d0021b; color: white; }
-        .btn-danger:hover { background: #a50017; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        #preview { max-width: 100%; max-height: 280px; display: none; margin-bottom: 12px; border-radius: 4px; }
-        textarea { width: 100%; box-sizing: border-box; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; min-height: 100px; }
-        .result-box { background: #f0f7f0; border: 1px solid #4caf50; border-radius: 6px; padding: 16px; }
-        .result-box .calories { font-size: 22px; font-weight: bold; color: #4a90e2; margin-top: 8px; }
-        .error { color: #d0021b; margin-top: 8px; }
-        .info { color: #888; font-size: 13px; margin-top: 6px; }
-        .footer { display: flex; justify-content: space-between; align-items: center; }
+        .navbar { background-color: #2e7d32 !important; }
+        .btn-primary {
+            --bs-btn-bg: #f4820d; --bs-btn-border-color: #f4820d; --bs-btn-color: #212529;
+            --bs-btn-hover-bg: #e07200; --bs-btn-hover-border-color: #e07200; --bs-btn-hover-color: #212529;
+        }
     </style>
 </head>
-<body>
-    <h1>Itadaki</h1>
+<body class="bg-light">
 
-    <!-- Étape 1 : upload -->
-    <div class="card" id="step-upload">
-        <h2>Analyser un plat</h2>
-        <img id="preview" alt="Aperçu">
-        <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp,.gif">
-        <button class="btn-primary" id="uploadBtn">Téléverser et analyser</button>
-        <div id="uploadError" class="error"></div>
-        <div id="uploadInfo" class="info"></div>
-    </div>
-
-    <!-- Étape 2 : correction de l'analyse préliminaire -->
-    <div class="card" id="step-correction" style="display:none">
-        <h2>Vérifier l'analyse</h2>
-        <p style="color:#555; font-size:14px;">L'IA a identifié le plat suivant. Tu peux corriger si nécessaire avant de calculer les calories.</p>
-        <textarea id="analysisText"></textarea>
-        <br><br>
-        <button class="btn-success" id="confirmBtn">Confirmer et calculer les calories</button>
-        <div id="correctionError" class="error"></div>
-    </div>
-
-    <!-- Étape 3 : résultat final -->
-    <div class="card" id="step-result" style="display:none">
-        <h2>Résultat</h2>
-        <div class="result-box">
-            <div id="finalAnalysisText"></div>
-            <div class="calories" id="caloriesText"></div>
+    <nav class="navbar navbar-expand-sm navbar-dark">
+        <div class="container" style="max-width:640px">
+            <span class="navbar-brand fw-bold">Itadaki</span>
+            <div class="d-flex align-items-center gap-3">
+                <a href="/history.html" class="nav-link text-white">Historique</a>
+                <a href="/stats.html" class="nav-link text-white">Statistiques</a>
+                <button class="btn btn-outline-light btn-sm" id="logoutBtn">Déconnexion</button>
+            </div>
         </div>
-        <br>
-        <button class="btn-primary" id="newPhotoBtn">Analyser un autre plat</button>
-    </div>
+    </nav>
 
-    <div class="footer">
-        <a href="/history.html" style="color:#4a90e2;">Voir l'historique →</a>
-        <a href="/stats.html" style="color:#4a90e2;">Statistiques →</a>
-        <button class="btn-danger" id="logoutBtn">Se déconnecter</button>
+    <div class="container py-4" style="max-width:640px">
+
+        <!-- Étape 1 : upload -->
+        <div class="card mb-3" id="step-upload">
+            <div class="card-body">
+                <h5 class="card-title">Analyser un plat</h5>
+                <img id="preview" class="img-fluid rounded mb-3" alt="Aperçu" style="display:none; max-height:280px;">
+                <div class="mb-3">
+                    <input type="file" class="form-control" id="fileInput" accept=".jpg,.jpeg,.png,.webp,.gif">
+                </div>
+                <button class="btn btn-primary" id="uploadBtn">Téléverser et analyser</button>
+                <div id="uploadError" class="text-danger mt-2 small"></div>
+                <div id="uploadInfo" class="text-muted mt-2 small"></div>
+            </div>
+        </div>
+
+        <!-- Étape 2 : correction -->
+        <div class="card mb-3" id="step-correction" style="display:none">
+            <div class="card-body">
+                <h5 class="card-title">Vérifier l'analyse</h5>
+                <p class="text-muted small">L'IA a identifié le plat suivant. Tu peux corriger si nécessaire avant de calculer les calories.</p>
+                <textarea class="form-control mb-3" id="analysisText" rows="4"></textarea>
+                <button class="btn btn-success" id="confirmBtn">Confirmer et calculer les calories</button>
+                <div id="correctionError" class="text-danger mt-2 small"></div>
+            </div>
+        </div>
+
+        <!-- Étape 3 : résultat -->
+        <div class="card mb-3" id="step-result" style="display:none">
+            <div class="card-body">
+                <h5 class="card-title">Résultat</h5>
+                <div class="alert alert-success mb-3">
+                    <div id="finalAnalysisText"></div>
+                    <div class="fs-4 fw-bold mt-2" id="caloriesText"></div>
+                </div>
+                <button class="btn btn-primary" id="newPhotoBtn">Analyser un autre plat</button>
+            </div>
+        </div>
+
     </div>
 
     <script>
         let currentPhotoId = null;
 
-        const fileInput    = document.getElementById('fileInput');
-        const preview      = document.getElementById('preview');
-        const uploadBtn    = document.getElementById('uploadBtn');
-        const uploadError  = document.getElementById('uploadError');
-        const uploadInfo   = document.getElementById('uploadInfo');
-        const analysisText = document.getElementById('analysisText');
-        const confirmBtn   = document.getElementById('confirmBtn');
+        const fileInput       = document.getElementById('fileInput');
+        const preview         = document.getElementById('preview');
+        const uploadBtn       = document.getElementById('uploadBtn');
+        const uploadError     = document.getElementById('uploadError');
+        const uploadInfo      = document.getElementById('uploadInfo');
+        const analysisText    = document.getElementById('analysisText');
+        const confirmBtn      = document.getElementById('confirmBtn');
         const correctionError = document.getElementById('correctionError');
 
         fileInput.addEventListener('change', () => {
@@ -98,19 +98,16 @@
             formData.append('file', file);
 
             try {
-                // Upload
                 const uploadRes = await fetch('/api/photos/upload', { method: 'POST', body: formData });
                 if (!uploadRes.ok) { uploadError.textContent = await uploadRes.text(); uploadBtn.disabled = false; uploadInfo.textContent = ''; return; }
                 const uploaded = await uploadRes.json();
                 currentPhotoId = uploaded.id;
 
-                // Analyse LLM 1
                 uploadInfo.textContent = 'Analyse en cours…';
                 const analyzeRes = await fetch(`/api/photos/${currentPhotoId}/analyze`, { method: 'POST' });
                 if (!analyzeRes.ok) { uploadError.textContent = 'Erreur lors de l\'analyse'; uploadBtn.disabled = false; uploadInfo.textContent = ''; return; }
                 const analyzed = await analyzeRes.json();
 
-                // Passer à l'étape 2
                 analysisText.value = analyzed.preliminaryAnalysis;
                 document.getElementById('step-upload').style.display = 'none';
                 document.getElementById('step-correction').style.display = 'block';

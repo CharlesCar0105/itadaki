@@ -3,45 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <title>Statistiques - Itadaki</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; max-width: 700px; margin: 60px auto; }
-        .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-        .nav a { color: #4a90e2; text-decoration: none; }
-        h1 { color: #333; margin: 0; }
-        .summary { display: flex; gap: 16px; margin-bottom: 24px; }
-        .stat-card { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 16px; text-align: center; }
-        .stat-card .value { font-size: 28px; font-weight: bold; color: #4a90e2; }
-        .stat-card .label { font-size: 13px; color: #888; margin-top: 4px; }
-        .chart-container { border: 1px solid #ddd; border-radius: 8px; padding: 16px; }
-        #empty { text-align: center; color: #999; margin-top: 40px; }
+        .navbar { background-color: #2e7d32 !important; }
+        .text-primary { color: #2e7d32 !important; }
     </style>
 </head>
-<body>
-    <div class="nav">
-        <a href="/history.html">← Historique</a>
-        <h1>Évolution</h1>
-        <span></span>
-    </div>
+<body class="bg-light">
 
-    <div class="summary">
-        <div class="stat-card">
-            <div class="value" id="todayCalories">—</div>
-            <div class="label">Calories aujourd'hui</div>
+    <nav class="navbar navbar-expand-sm navbar-dark">
+        <div class="container" style="max-width:700px">
+            <a class="navbar-brand fw-bold" href="/home.html">Itadaki</a>
+            <div class="d-flex align-items-center gap-3">
+                <a href="/home.html" class="nav-link text-white">Accueil</a>
+                <a href="/history.html" class="nav-link text-white">Historique</a>
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="value" id="avgCalories">—</div>
-            <div class="label">Moyenne / jour (7 j)</div>
-        </div>
-        <div class="stat-card">
-            <div class="value" id="totalDays">—</div>
-            <div class="label">Jours enregistrés</div>
-        </div>
-    </div>
+    </nav>
 
-    <div class="chart-container">
-        <canvas id="chart"></canvas>
+    <div class="container py-4" style="max-width:700px">
+        <h4 class="mb-3">Évolution des calories</h4>
+
+        <div class="row g-3 mb-4">
+            <div class="col-4">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-3 fw-bold text-primary" id="todayCalories">—</div>
+                        <div class="text-muted small mt-1">Calories aujourd'hui</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-3 fw-bold text-primary" id="avgCalories">—</div>
+                        <div class="text-muted small mt-1">Moyenne / jour (7 j)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-3 fw-bold text-primary" id="totalDays">—</div>
+                        <div class="text-muted small mt-1">Jours enregistrés</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <canvas id="chart"></canvas>
+            </div>
+        </div>
+
+        <div id="empty" class="text-center text-muted mt-5" style="display:none">
+            Aucune donnée disponible — analysez des plats pour voir votre évolution.
+        </div>
     </div>
-    <div id="empty" style="display:none">Aucune donnée disponible — analysez des plats pour voir votre évolution.</div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <script type="module">
@@ -53,20 +72,17 @@
         if (data.length === 0) {
             document.getElementById('empty').style.display = 'block';
         } else {
-            const labels = data.map(d => new Date(d.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
+            const labels   = data.map(d => new Date(d.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
             const calories = data.map(d => d.totalCalories);
-            const today = new Date().toISOString().slice(0, 10);
+            const today    = new Date().toISOString().slice(0, 10);
 
-            // Calories aujourd'hui
             const todayEntry = data.find(d => d.date === today);
             document.getElementById('todayCalories').textContent = todayEntry ? `${todayEntry.totalCalories} kcal` : '0 kcal';
 
-            // Moyenne sur les 7 derniers jours
             const last7 = data.slice(-7);
-            const avg = Math.round(last7.reduce((s, d) => s + d.totalCalories, 0) / last7.length);
+            const avg   = Math.round(last7.reduce((s, d) => s + d.totalCalories, 0) / last7.length);
             document.getElementById('avgCalories').textContent = `${avg} kcal`;
-
-            document.getElementById('totalDays').textContent = data.length;
+            document.getElementById('totalDays').textContent   = data.length;
 
             new Chart(document.getElementById('chart'), {
                 data: {
@@ -76,14 +92,14 @@
                             type: 'bar',
                             label: 'Calories',
                             data: calories,
-                            backgroundColor: calories.map(c => c > 2000 ? '#e57373' : '#4a90e2'),
+                            backgroundColor: calories.map(c => c > 2000 ? '#dc3545' : '#f4820d'),
                             borderRadius: 4,
                         },
                         {
                             type: 'line',
                             label: 'Référence 2000 kcal',
                             data: Array(labels.length).fill(2000),
-                            borderColor: '#f0a500',
+                            borderColor: '#ffc107',
                             borderDash: [6, 4],
                             borderWidth: 2,
                             pointRadius: 0,
@@ -95,9 +111,7 @@
                     responsive: true,
                     plugins: {
                         legend: { position: 'bottom' },
-                        tooltip: {
-                            callbacks: { label: ctx => `${ctx.parsed.y} kcal` }
-                        }
+                        tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} kcal` } }
                     },
                     scales: {
                         y: { beginAtZero: true, title: { display: true, text: 'kcal' } },
