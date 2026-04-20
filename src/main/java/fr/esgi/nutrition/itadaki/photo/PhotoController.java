@@ -31,7 +31,7 @@ public class PhotoController {
     private final UserRepository userRepository;
 
     @PostMapping("/upload")
-    public ResponseEntity<?> upload(@RequestParam("file") MultipartFile file,
+    public ResponseEntity<Object> upload(@RequestParam("file") MultipartFile file,
                                     Authentication authentication) throws IOException {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Aucun fichier fourni");

@@ -8,7 +8,7 @@
         h1 { text-align: center; color: #333; }
         form { display: flex; flex-direction: column; gap: 10px; }
         input { padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
-        button { padding: 10px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        button { padding: 10px; background: #357ab8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
         button:hover { background: #357ab8; }
         #message { margin-top: 10px; text-align: center; }
         .error { color: #d0021b; }
@@ -43,14 +43,13 @@
                 if (res.ok) {
                     msg.className = 'success';
                     msg.textContent = 'Connexion réussie ! Redirection...';
-                    setTimeout(() => window.location.href = '/home.html', 800);
+                    setTimeout(() => globalThis.location.href = '/home.html', 800);
                 } else {
                     msg.className = 'error';
                     msg.textContent = text;
                 }
             } catch (err) {
-                msg.className = 'error';
-                msg.textContent = 'Erreur réseau';
+                console.log(`Exception while doing something: ${err}`);
             }
         });
     </script>

@@ -7,7 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 class ItadakiApplicationTests {
 
 	@Test
-	void contextLoads() {
+	void contextLoads() { //default test
 	}
 
 }

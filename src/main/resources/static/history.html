@@ -31,7 +31,7 @@
     <div id="list"></div>
     <div id="empty" style="display:none">Aucune photo téléversée pour l'instant.</div>
 
-    <script>
+    <script type="module">
         function formatDate(iso) {
             return new Date(iso).toLocaleString('fr-FR', {
                 day: '2-digit', month: '2-digit', year: 'numeric',
@@ -39,20 +39,23 @@
             });
         }
 
-        async function loadHistory() {
-            const res = await fetch('/api/photos/history');
-            if (!res.ok) { window.location.href = '/login.html'; return; }
+        const res = await fetch('/api/photos/history');
 
-            const items = await res.json();
-            const list = document.getElementById('list');
-            const empty = document.getElementById('empty');
-            const totalEl = document.getElementById('total');
+        if (!res.ok) {
+            globalThis.location.href = '/login.html';
+            throw new Error('Unauthorized');
+        }
 
-            if (items.length === 0) {
-                empty.style.display = 'block';
-                return;
-            }
+        const items = await res.json();
+        const list = document.getElementById('list');
+        const empty = document.getElementById('empty');
+        const totalEl = document.getElementById('total');
 
+        if (items.length === 0) {
+            empty.style.display = 'block';
+        }
+
+        if (items.length > 0) {
             const totalCalories = items
                 .filter(i => i.calories != null)
                 .reduce((sum, i) => sum + i.calories, 0);
@@ -74,7 +77,7 @@
                             ? `<div class="meal-analysis">${item.analysisResult}</div>`
                             : `<div class="meal-pending">Analyse en attente…</div>`
                         }
-                        ${item.calories != null
+                        ${item.calories
                             ? `<div class="meal-calories">${item.calories} kcal</div>`
                             : ''
                         }
@@ -83,8 +86,6 @@
                 list.appendChild(div);
             });
         }
-
-        loadHistory();
     </script>
 </body>
 </html>
