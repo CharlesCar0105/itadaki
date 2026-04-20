@@ -93,7 +93,7 @@ public class PhotoController {
                     p.setPreliminaryAnalysis(req.correctedAnalysis());
                     // Remplacer par l'appel Spring AI / LLM 2
                     p.setFinalAnalysis("Analyse finale IA à venir");
-                    p.setCalories(null);
+                    p.setCalories(500);
                     p.setStatus(MealPhotoStatus.FINALIZED);
                     mealPhotoRepository.save(p);
                     return ResponseEntity.ok((Object) toHistoryResponse(p));
@@ -162,10 +162,10 @@ public class PhotoController {
         List<DailyCaloriesResponse> result = mealPhotoRepository
                 .findByUserOrderByUploadedAtDesc(user)
                 .stream()
-                .filter(p -> p.getStatus() == MealPhotoStatus.FINALIZED && p.getCalories() != null)
+                .filter(p -> p.getStatus() == MealPhotoStatus.FINALIZED)
                 .collect(Collectors.groupingBy(
                         p -> (p.getMealDate() != null ? p.getMealDate() : p.getUploadedAt().toLocalDate()).toString(),
-                        Collectors.summingInt(MealPhoto::getCalories)
+                        Collectors.summingInt(p -> p.getCalories() != null ? p.getCalories() : 0)
                 ))
                 .entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())

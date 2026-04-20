@@ -45,9 +45,18 @@
         <div class="card mb-3" id="step-correction" style="display:none">
             <div class="card-body">
                 <h5 class="card-title">Vérifier l'analyse</h5>
-                <p class="text-muted small">L'IA a identifié le plat suivant. Tu peux corriger si nécessaire avant de calculer les calories.</p>
-                <textarea class="form-control mb-3" id="analysisText" rows="4"></textarea>
-                <button class="btn btn-success" id="confirmBtn">Confirmer et calculer les calories</button>
+                <p class="text-muted small">L'IA a identifié le plat suivant. Tu peux corriger avant de calculer les calories.</p>
+
+                <label class="form-label fw-semibold" for="dishNameInput">Nom du plat</label>
+                <input type="text" class="form-control mb-3" id="dishNameInput" placeholder="Nom du plat">
+
+                <label class="form-label fw-semibold" for="ingredientsList">Ingrédients</label>
+                <div id="ingredientsList" class="mb-2"></div>
+                <button type="button" class="btn btn-outline-primary btn-sm mb-3" id="addIngredientBtn">+ Ajouter un ingrédient</button>
+
+                <div>
+                    <button class="btn btn-success" id="confirmBtn">Confirmer et calculer les calories</button>
+                </div>
                 <div id="correctionError" class="text-danger mt-2 small"></div>
             </div>
         </div>
@@ -74,9 +83,70 @@
         const uploadBtn       = document.getElementById('uploadBtn');
         const uploadError     = document.getElementById('uploadError');
         const uploadInfo      = document.getElementById('uploadInfo');
-        const analysisText    = document.getElementById('analysisText');
         const confirmBtn      = document.getElementById('confirmBtn');
         const correctionError = document.getElementById('correctionError');
+        const ingredientsList = document.getElementById('ingredientsList');
+
+        function addIngredientRow(name = '', weight = '') {
+            const row = document.createElement('div');
+            row.className = 'd-flex gap-2 mb-2 align-items-center ingredient-row';
+
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.className = 'form-control form-control-sm ing-name';
+            nameInput.value = name;
+            nameInput.placeholder = 'Ingrédient';
+            nameInput.style.flex = '2';
+
+            const weightInput = document.createElement('input');
+            weightInput.type = 'number';
+            weightInput.className = 'form-control form-control-sm ing-weight';
+            weightInput.value = weight;
+            weightInput.placeholder = '0';
+            weightInput.min = '0';
+            weightInput.style.flex = '1';
+
+            const unit = document.createElement('span');
+            unit.className = 'text-muted small';
+            unit.textContent = 'g';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.textContent = '✕';
+            removeBtn.className = 'btn btn-outline-danger btn-sm';
+            removeBtn.addEventListener('click', () => row.remove());
+
+            row.appendChild(nameInput);
+            row.appendChild(weightInput);
+            row.appendChild(unit);
+            row.appendChild(removeBtn);
+            ingredientsList.appendChild(row);
+        }
+
+        function populateForm(preliminaryAnalysis) {
+            ingredientsList.innerHTML = '';
+            try {
+                const data = JSON.parse(preliminaryAnalysis);
+                document.getElementById('dishNameInput').value = data.dish_name ?? '';
+                (data.ingredients ?? []).forEach(ing => addIngredientRow(ing.name ?? '', ing.estimated_weight_g ?? ''));
+            } catch {
+                document.getElementById('dishNameInput').value = '';
+                addIngredientRow();
+            }
+        }
+
+        function collectAnalysis() {
+            const dishName = document.getElementById('dishNameInput').value.trim();
+            const ingredients = [];
+            ingredientsList.querySelectorAll('.ingredient-row').forEach(row => {
+                const name = row.querySelector('.ing-name').value.trim();
+                const weight = Number.parseFloat(row.querySelector('.ing-weight').value) || 0;
+                if (name) ingredients.push({ name, estimated_weight_g: weight });
+            });
+            return JSON.stringify({ dish_name: dishName, ingredients });
+        }
+
+        document.getElementById('addIngredientBtn').addEventListener('click', () => addIngredientRow());
 
         fileInput.addEventListener('change', () => {
             const file = fileInput.files[0];
@@ -108,7 +178,7 @@
                 if (!analyzeRes.ok) { uploadError.textContent = 'Erreur lors de l\'analyse'; uploadBtn.disabled = false; uploadInfo.textContent = ''; return; }
                 const analyzed = await analyzeRes.json();
 
-                analysisText.value = analyzed.preliminaryAnalysis;
+                populateForm(analyzed.preliminaryAnalysis);
                 document.getElementById('step-upload').style.display = 'none';
                 document.getElementById('step-correction').style.display = 'block';
 
@@ -121,8 +191,9 @@
         });
 
         confirmBtn.addEventListener('click', async () => {
-            const corrected = analysisText.value.trim();
-            if (!corrected) { correctionError.textContent = 'Le texte ne peut pas être vide'; return; }
+            const corrected = collectAnalysis();
+            const parsed = JSON.parse(corrected);
+            if (!parsed.dish_name) { correctionError.textContent = 'Le nom du plat ne peut pas être vide'; return; }
 
             confirmBtn.disabled = true;
             correctionError.textContent = '';
@@ -160,6 +231,8 @@
             uploadInfo.textContent = '';
             confirmBtn.disabled = false;
             correctionError.textContent = '';
+            ingredientsList.innerHTML = '';
+            document.getElementById('dishNameInput').value = '';
             document.getElementById('step-result').style.display = 'none';
             document.getElementById('step-upload').style.display = 'block';
         });

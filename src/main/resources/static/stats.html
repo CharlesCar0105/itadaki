@@ -65,7 +65,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <script type="module">
         const res = await fetch('/api/photos/stats/daily');
-        if (!res.ok) { globalThis.location.href = '/login.html'; }
+        if (res.ok) {
 
         const data = await res.json();
 
@@ -119,6 +119,9 @@
                     }
                 }
             });
+        }
+        } else {
+            globalThis.location.href = '/login.html';
         }
     </script>
 </body>
