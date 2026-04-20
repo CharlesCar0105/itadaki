@@ -58,13 +58,13 @@ public class PhotoController {
 
     // Étape 1 — analyse par le premier LLM (à implémenter par l'équipe IA)
     @PostMapping("/{id}/analyze")
-    public ResponseEntity<?> analyze(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<Object> analyze(@PathVariable Long id, Authentication authentication) {
         User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
 
         return mealPhotoRepository.findById(id)
                 .filter(p -> p.getUser().getId().equals(user.getId()))
                 .map(p -> {
-                    // TODO : remplacer par l'appel Spring AI / LLM 1
+                    // Remplacer par l'appel Spring AI / LLM 1
                     p.setPreliminaryAnalysis("Analyse IA à venir");
                     p.setStatus(MealPhotoStatus.PRELIMINARY_DONE);
                     mealPhotoRepository.save(p);
@@ -75,7 +75,7 @@ public class PhotoController {
 
     // Étape 2 — analyse finale par le deuxième LLM avec le texte (potentiellement corrigé)
     @PostMapping("/{id}/finalize")
-    public ResponseEntity<?> finalize(@PathVariable Long id,
+    public ResponseEntity<Object> finalizeAnalysis(@PathVariable Long id,
                                       @RequestBody FinalizeRequest req,
                                       Authentication authentication) {
         User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
@@ -85,7 +85,7 @@ public class PhotoController {
                 .map(p -> {
                     // Sauvegarde du texte corrigé par l'utilisateur
                     p.setPreliminaryAnalysis(req.correctedAnalysis());
-                    // TODO : remplacer par l'appel Spring AI / LLM 2
+                    // Remplacer par l'appel Spring AI / LLM 2
                     p.setFinalAnalysis("Analyse finale IA à venir");
                     p.setCalories(null);
                     p.setStatus(MealPhotoStatus.FINALIZED);

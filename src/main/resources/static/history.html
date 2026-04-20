@@ -35,7 +35,7 @@
     <div id="list"></div>
     <div id="empty" style="display:none">Aucune photo téléversée pour l'instant.</div>
 
-    <script>
+    <script type="module">
         const STATUS_LABELS = {
             UPLOADED:         { text: 'Uploadé',              css: 'badge-uploaded' },
             PRELIMINARY_DONE: { text: 'Analyse préliminaire', css: 'badge-preliminary' },
@@ -51,7 +51,7 @@
 
         async function loadHistory() {
             const res = await fetch('/api/photos/history');
-            if (!res.ok) { window.location.href = '/login.html'; return; }
+            if (!res.ok) { globalThis.location.href = '/login.html'; return; }
 
             const items = await res.json();
             const list = document.getElementById('list');
@@ -81,14 +81,14 @@
                             ? `<div class="meal-analysis">${analysis}</div>`
                             : `<div class="meal-analysis" style="color:#aaa;font-style:italic">Analyse en attente…</div>`
                         }
-                        <div class="meal-calories ${item.calories == null ? 'pending' : ''}">${item.calories != null ? `${item.calories} kcal` : 'Calories : en attente'}</div>
+                        <div class="meal-calories ${item.calories == null ? 'pending' : ''}">${item.calories == null ? 'Calories : en attente' : `${item.calories} kcal`}</div>
                     </div>
                 `;
                 list.appendChild(div);
             });
         }
 
-        loadHistory();
+        await loadHistory();
     </script>
 </body>
 </html>
