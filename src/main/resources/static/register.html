@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Inscription - Itadaki</title>
+    <style>
+        body { font-family: sans-serif; max-width: 400px; margin: 80px auto; }
+        h1 { text-align: center; color: #333; }
+        form { display: flex; flex-direction: column; gap: 10px; }
+        input { padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        button:hover { background: #357ab8; }
+        #message { margin-top: 10px; text-align: center; }
+        .error { color: #d0021b; }
+        .success { color: #4caf50; }
+        p { text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>Inscription</h1>
+    <form id="registerForm">
+        <input type="text" id="username" placeholder="Nom d'utilisateur" required>
+        <input type="password" id="password" placeholder="Mot de passe (min. 4 caractères)" required>
+        <button type="submit">S'inscrire</button>
+    </form>
+    <div id="message"></div>
+    <p><a href="/login.html">Déjà un compte ? Se connecter</a></p>
+
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const msg = document.getElementById('message');
+
+            try {
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const text = await res.text();
+                if (res.ok) {
+                    msg.className = 'success';
+                    msg.textContent = 'Inscription réussie ! Redirection...';
+                    setTimeout(() => window.location.href = '/login.html', 1000);
+                } else {
+                    msg.className = 'error';
+                    msg.textContent = text;
+                }
+            } catch (err) {
+                msg.className = 'error';
+                msg.textContent = 'Erreur réseau';
+            }
+        });
+    </script>
+</body>
+</html>
