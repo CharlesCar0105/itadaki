@@ -3,6 +3,7 @@ package fr.esgi.nutrition.itadaki.photo;
 import fr.esgi.nutrition.itadaki.user.User;
 import fr.esgi.nutrition.itadaki.user.UserRepository;
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -12,7 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -51,6 +54,7 @@ public class PhotoController {
                 .contentType(contentType)
                 .imageData(file.getBytes())
                 .uploadedAt(LocalDateTime.now())
+                .mealDate(LocalDate.now())
                 .user(user)
                 .build();
 
@@ -122,6 +126,35 @@ public class PhotoController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id, Authentication authentication) {
+        User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
+
+        return mealPhotoRepository.findById(id)
+                .filter(p -> p.getUser().getId().equals(user.getId()))
+                .<ResponseEntity<Void>>map(p -> {
+                    mealPhotoRepository.delete(p);
+                    return ResponseEntity.noContent().build();
+                })
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PatchMapping("/{id}/meal-date")
+    public ResponseEntity<Object> updateMealDate(@PathVariable Long id,
+                                                  @RequestBody MealDateRequest req,
+                                                  Authentication authentication) {
+        User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
+
+        return mealPhotoRepository.findById(id)
+                .filter(p -> p.getUser().getId().equals(user.getId()))
+                .map(p -> {
+                    p.setMealDate(req.mealDate());
+                    mealPhotoRepository.save(p);
+                    return ResponseEntity.ok((Object) toHistoryResponse(p));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/stats/daily")
     public ResponseEntity<List<DailyCaloriesResponse>> dailyStats(Authentication authentication) {
         User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
@@ -131,7 +164,7 @@ public class PhotoController {
                 .stream()
                 .filter(p -> p.getStatus() == MealPhotoStatus.FINALIZED && p.getCalories() != null)
                 .collect(Collectors.groupingBy(
-                        p -> p.getUploadedAt().toLocalDate().toString(),
+                        p -> (p.getMealDate() != null ? p.getMealDate() : p.getUploadedAt().toLocalDate()).toString(),
                         Collectors.summingInt(MealPhoto::getCalories)
                 ))
                 .entrySet().stream()
@@ -143,10 +176,12 @@ public class PhotoController {
     }
 
     private HistoryResponse toHistoryResponse(MealPhoto p) {
+        LocalDate mealDate = p.getMealDate() != null ? p.getMealDate() : p.getUploadedAt().toLocalDate();
         return new HistoryResponse(
                 p.getId(),
                 p.getFilename(),
                 p.getUploadedAt(),
+                mealDate,
                 p.getStatus(),
                 p.getPreliminaryAnalysis(),
                 p.getFinalAnalysis(),

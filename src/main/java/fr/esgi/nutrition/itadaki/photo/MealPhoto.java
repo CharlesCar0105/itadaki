@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -64,4 +65,6 @@ public class MealPhoto {
     private String finalAnalysis;
 
     private Integer calories;
+
+    private LocalDate mealDate;
 }
