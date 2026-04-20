@@ -10,79 +10,163 @@
         .card h2 { margin-top: 0; color: #444; }
         input[type="file"] { display: block; margin-bottom: 12px; }
         button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
-        .btn-primary { background: #357ab8; color: white; }
+        .btn-primary { background: #4a90e2; color: white; }
         .btn-primary:hover { background: #357ab8; }
+        .btn-success { background: #4caf50; color: white; }
+        .btn-success:hover { background: #388e3c; }
         .btn-danger { background: #d0021b; color: white; }
         .btn-danger:hover { background: #a50017; }
-        #preview { max-width: 100%; max-height: 300px; display: none; margin-bottom: 12px; border-radius: 4px; }
-        #message { margin-top: 12px; }
-        .error { color: #d0021b; }
-        .success { color: #4caf50; }
-        .footer { text-align: right; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        #preview { max-width: 100%; max-height: 280px; display: none; margin-bottom: 12px; border-radius: 4px; }
+        textarea { width: 100%; box-sizing: border-box; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; min-height: 100px; }
+        .result-box { background: #f0f7f0; border: 1px solid #4caf50; border-radius: 6px; padding: 16px; }
+        .result-box .calories { font-size: 22px; font-weight: bold; color: #4a90e2; margin-top: 8px; }
+        .error { color: #d0021b; margin-top: 8px; }
+        .info { color: #888; font-size: 13px; margin-top: 6px; }
+        .footer { display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body>
     <h1>Itadaki</h1>
 
-    <div class="card">
+    <!-- Étape 1 : upload -->
+    <div class="card" id="step-upload">
         <h2>Analyser un plat</h2>
-        <img id="preview" alt="Aperçu de img" />
+        <img id="preview" alt="Aperçu">
         <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp,.gif">
-        <button class="btn-primary" id="uploadBtn">Téléverser</button>
-        <div id="message"></div>
+        <button class="btn-primary" id="uploadBtn">Téléverser et analyser</button>
+        <div id="uploadError" class="error"></div>
+        <div id="uploadInfo" class="info"></div>
     </div>
 
-    <div class="footer" style="display:flex; justify-content:space-between; align-items:center;">
+    <!-- Étape 2 : correction de l'analyse préliminaire -->
+    <div class="card" id="step-correction" style="display:none">
+        <h2>Vérifier l'analyse</h2>
+        <p style="color:#555; font-size:14px;">L'IA a identifié le plat suivant. Tu peux corriger si nécessaire avant de calculer les calories.</p>
+        <textarea id="analysisText"></textarea>
+        <br><br>
+        <button class="btn-success" id="confirmBtn">Confirmer et calculer les calories</button>
+        <div id="correctionError" class="error"></div>
+    </div>
+
+    <!-- Étape 3 : résultat final -->
+    <div class="card" id="step-result" style="display:none">
+        <h2>Résultat</h2>
+        <div class="result-box">
+            <div id="finalAnalysisText"></div>
+            <div class="calories" id="caloriesText"></div>
+        </div>
+        <br>
+        <button class="btn-primary" id="newPhotoBtn">Analyser un autre plat</button>
+    </div>
+
+    <div class="footer">
         <a href="/history.html" style="color:#4a90e2;">Voir l'historique →</a>
         <button class="btn-danger" id="logoutBtn">Se déconnecter</button>
     </div>
 
     <script>
-        const fileInput = document.getElementById('fileInput');
-        const preview = document.getElementById('preview');
-        const msg = document.getElementById('message');
+        let currentPhotoId = null;
+
+        const fileInput    = document.getElementById('fileInput');
+        const preview      = document.getElementById('preview');
+        const uploadBtn    = document.getElementById('uploadBtn');
+        const uploadError  = document.getElementById('uploadError');
+        const uploadInfo   = document.getElementById('uploadInfo');
+        const analysisText = document.getElementById('analysisText');
+        const confirmBtn   = document.getElementById('confirmBtn');
+        const correctionError = document.getElementById('correctionError');
 
         fileInput.addEventListener('change', () => {
             const file = fileInput.files[0];
             if (!file) return;
             preview.src = URL.createObjectURL(file);
             preview.style.display = 'block';
+            uploadError.textContent = '';
         });
 
-        document.getElementById('uploadBtn').addEventListener('click', async () => {
+        uploadBtn.addEventListener('click', async () => {
             const file = fileInput.files[0];
-            if (!file) {
-                msg.className = 'error';
-                msg.textContent = 'Sélectionne une image d\'abord';
-                return;
-            }
+            if (!file) { uploadError.textContent = "Sélectionne une image d'abord"; return; }
+
+            uploadBtn.disabled = true;
+            uploadInfo.textContent = 'Envoi en cours…';
+            uploadError.textContent = '';
 
             const formData = new FormData();
             formData.append('file', file);
 
             try {
-                const res = await fetch('/api/photos/upload', {
-                    method: 'POST',
-                    body: formData
-                });
+                // Upload
+                const uploadRes = await fetch('/api/photos/upload', { method: 'POST', body: formData });
+                if (!uploadRes.ok) { uploadError.textContent = await uploadRes.text(); uploadBtn.disabled = false; uploadInfo.textContent = ''; return; }
+                const uploaded = await uploadRes.json();
+                currentPhotoId = uploaded.id;
 
-                if (res.ok) {
-                    const data = await res.json();
-                    msg.className = 'success';
-                    msg.textContent = `Photo "${data.filename}" uploadée avec succès (id: ${data.id})`;
-                } else {
-                    const text = await res.text();
-                    msg.className = 'error';
-                    msg.textContent = text;
-                }
-            } catch (err) {
-                console.log(`Exception while doing something: ${err}`);
+                // Analyse LLM 1
+                uploadInfo.textContent = 'Analyse en cours…';
+                const analyzeRes = await fetch(`/api/photos/${currentPhotoId}/analyze`, { method: 'POST' });
+                if (!analyzeRes.ok) { uploadError.textContent = 'Erreur lors de l\'analyse'; uploadBtn.disabled = false; uploadInfo.textContent = ''; return; }
+                const analyzed = await analyzeRes.json();
+
+                // Passer à l'étape 2
+                analysisText.value = analyzed.preliminaryAnalysis;
+                document.getElementById('step-upload').style.display = 'none';
+                document.getElementById('step-correction').style.display = 'block';
+
+            } catch (e) {
+                uploadError.textContent = 'Erreur réseau';
+                uploadBtn.disabled = false;
+                uploadInfo.textContent = '';
             }
         });
 
+        confirmBtn.addEventListener('click', async () => {
+            const corrected = analysisText.value.trim();
+            if (!corrected) { correctionError.textContent = 'Le texte ne peut pas être vide'; return; }
+
+            confirmBtn.disabled = true;
+            correctionError.textContent = '';
+
+            try {
+                const res = await fetch(`/api/photos/${currentPhotoId}/finalize`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ correctedAnalysis: corrected })
+                });
+
+                if (!res.ok) { correctionError.textContent = 'Erreur lors du calcul des calories'; confirmBtn.disabled = false; return; }
+                const result = await res.json();
+
+                document.getElementById('finalAnalysisText').textContent = result.finalAnalysis ?? result.preliminaryAnalysis;
+                document.getElementById('caloriesText').textContent = result.calories != null
+                    ? `${result.calories} kcal`
+                    : 'Calories à venir';
+
+                document.getElementById('step-correction').style.display = 'none';
+                document.getElementById('step-result').style.display = 'block';
+
+            } catch (e) {
+                correctionError.textContent = 'Erreur réseau';
+                confirmBtn.disabled = false;
+            }
+        });
+
+        document.getElementById('newPhotoBtn').addEventListener('click', () => {
+            currentPhotoId = null;
+            fileInput.value = '';
+            preview.style.display = 'none';
+            uploadBtn.disabled = false;
+            uploadInfo.textContent = '';
+            confirmBtn.disabled = false;
+            correctionError.textContent = '';
+            document.getElementById('step-result').style.display = 'none';
+            document.getElementById('step-upload').style.display = 'block';
+        });
+
         document.getElementById('logoutBtn').addEventListener('click', async () => {
-            const res = await fetch('/api/auth/logout', { method: 'POST' });
-            if (res.ok) globalThis.location.href = '/login.html';
+            await fetch('/api/auth/logout', { method: 'POST' });
+            window.location.href = '/login.html';
         });
     </script>
 </body>

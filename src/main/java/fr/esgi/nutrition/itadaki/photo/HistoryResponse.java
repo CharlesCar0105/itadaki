@@ -6,7 +6,9 @@ public record HistoryResponse(
         Long id,
         String filename,
         LocalDateTime uploadedAt,
-        String analysisResult,
+        MealPhotoStatus status,
+        String preliminaryAnalysis,
+        String finalAnalysis,
         Integer calories
 ) {
 }

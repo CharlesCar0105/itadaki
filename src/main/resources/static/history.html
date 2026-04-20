@@ -5,17 +5,21 @@
     <title>Historique - Itadaki</title>
     <style>
         body { font-family: sans-serif; max-width: 700px; margin: 60px auto; }
-        h1 { color: #333; text-align: center; }
         .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
         .nav a { color: #4a90e2; text-decoration: none; }
+        h1 { color: #333; margin: 0; }
         .meal { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; display: flex; gap: 16px; }
         .meal img { width: 120px; height: 90px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
         .meal-info { flex: 1; }
-        .meal-info h3 { margin: 0 0 6px 0; color: #333; font-size: 15px; }
+        .meal-info h3 { margin: 0 0 4px 0; color: #333; font-size: 15px; }
         .meal-date { font-size: 12px; color: #999; margin-bottom: 8px; }
-        .meal-analysis { font-size: 14px; color: #555; margin-bottom: 6px; }
-        .meal-calories { font-weight: bold; color: #4a90e2; }
-        .meal-pending { font-size: 13px; color: #aaa; font-style: italic; }
+        .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-bottom: 8px; }
+        .badge-uploaded { background: #eee; color: #666; }
+        .badge-preliminary { background: #fff3cd; color: #856404; }
+        .badge-finalized { background: #d4edda; color: #155724; }
+        .meal-analysis { font-size: 13px; color: #555; margin-bottom: 4px; }
+        .meal-calories { font-weight: bold; color: #4a90e2; font-size: 15px; }
+        .meal-calories.pending { font-weight: normal; color: #aaa; font-style: italic; font-size: 13px; }
         .total { text-align: right; font-size: 16px; font-weight: bold; color: #333; margin-bottom: 16px; }
         #empty { text-align: center; color: #999; margin-top: 40px; }
     </style>
@@ -23,7 +27,7 @@
 <body>
     <div class="nav">
         <a href="/home.html">← Retour</a>
-        <h1 style="margin:0">Historique</h1>
+        <h1>Historique</h1>
         <span></span>
     </div>
 
@@ -31,7 +35,13 @@
     <div id="list"></div>
     <div id="empty" style="display:none">Aucune photo téléversée pour l'instant.</div>
 
-    <script type="module">
+    <script>
+        const STATUS_LABELS = {
+            UPLOADED:         { text: 'Uploadé',              css: 'badge-uploaded' },
+            PRELIMINARY_DONE: { text: 'Analyse préliminaire', css: 'badge-preliminary' },
+            FINALIZED:        { text: 'Finalisé',             css: 'badge-finalized' }
+        };
+
         function formatDate(iso) {
             return new Date(iso).toLocaleString('fr-FR', {
                 day: '2-digit', month: '2-digit', year: 'numeric',
@@ -39,33 +49,26 @@
             });
         }
 
-        const res = await fetch('/api/photos/history');
+        async function loadHistory() {
+            const res = await fetch('/api/photos/history');
+            if (!res.ok) { window.location.href = '/login.html'; return; }
 
-        if (!res.ok) {
-            globalThis.location.href = '/login.html';
-            throw new Error('Unauthorized');
-        }
+            const items = await res.json();
+            const list = document.getElementById('list');
 
-        const items = await res.json();
-        const list = document.getElementById('list');
-        const empty = document.getElementById('empty');
-        const totalEl = document.getElementById('total');
+            if (items.length === 0) { document.getElementById('empty').style.display = 'block'; return; }
 
-        if (items.length === 0) {
-            empty.style.display = 'block';
-        }
-
-        if (items.length > 0) {
-            const totalCalories = items
-                .filter(i => i.calories != null)
-                .reduce((sum, i) => sum + i.calories, 0);
-
+            const totalCalories = items.filter(i => i.calories != null).reduce((s, i) => s + i.calories, 0);
             if (totalCalories > 0) {
+                const totalEl = document.getElementById('total');
                 totalEl.style.display = 'block';
                 totalEl.textContent = `Total calories : ${totalCalories} kcal`;
             }
 
             items.forEach(item => {
+                const badge = STATUS_LABELS[item.status] ?? { text: item.status, css: 'badge-uploaded' };
+                const analysis = item.finalAnalysis ?? item.preliminaryAnalysis;
+
                 const div = document.createElement('div');
                 div.className = 'meal';
                 div.innerHTML = `
@@ -73,19 +76,19 @@
                     <div class="meal-info">
                         <h3>${item.filename}</h3>
                         <div class="meal-date">${formatDate(item.uploadedAt)}</div>
-                        ${item.analysisResult
-                            ? `<div class="meal-analysis">${item.analysisResult}</div>`
-                            : `<div class="meal-pending">Analyse en attente…</div>`
+                        <span class="badge ${badge.css}">${badge.text}</span>
+                        ${analysis
+                            ? `<div class="meal-analysis">${analysis}</div>`
+                            : `<div class="meal-analysis" style="color:#aaa;font-style:italic">Analyse en attente…</div>`
                         }
-                        ${item.calories
-                            ? `<div class="meal-calories">${item.calories} kcal</div>`
-                            : ''
-                        }
+                        <div class="meal-calories ${item.calories == null ? 'pending' : ''}">${item.calories != null ? `${item.calories} kcal` : 'Calories : en attente'}</div>
                     </div>
                 `;
                 list.appendChild(div);
             });
         }
+
+        loadHistory();
     </script>
 </body>
 </html>

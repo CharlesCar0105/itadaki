@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -36,14 +37,12 @@ public class PhotoController {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Aucun fichier fourni");
         }
-
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_TYPES.contains(contentType)) {
             return ResponseEntity.badRequest().body("Format non supporté. Formats acceptés : JPG, PNG, WEBP, GIF");
         }
 
-        User user = userRepository.findByUsername(authentication.getName())
-                .orElseThrow();
+        User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
 
         MealPhoto photo = MealPhoto.builder()
                 .filename(file.getOriginalFilename())
@@ -54,29 +53,56 @@ public class PhotoController {
                 .build();
 
         MealPhoto saved = mealPhotoRepository.save(photo);
+        return ResponseEntity.ok(new PhotoUploadResponse(saved.getId(), saved.getFilename(), saved.getUploadedAt()));
+    }
 
-        return ResponseEntity.ok(new PhotoUploadResponse(
-                saved.getId(),
-                saved.getFilename(),
-                saved.getUploadedAt()
-        ));
+    // Étape 1 — analyse par le premier LLM (à implémenter par l'équipe IA)
+    @PostMapping("/{id}/analyze")
+    public ResponseEntity<?> analyze(@PathVariable Long id, Authentication authentication) {
+        User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
+
+        return mealPhotoRepository.findById(id)
+                .filter(p -> p.getUser().getId().equals(user.getId()))
+                .map(p -> {
+                    // TODO : remplacer par l'appel Spring AI / LLM 1
+                    p.setPreliminaryAnalysis("Analyse IA à venir");
+                    p.setStatus(MealPhotoStatus.PRELIMINARY_DONE);
+                    mealPhotoRepository.save(p);
+                    return ResponseEntity.ok((Object) new AnalysisResponse(p.getId(), p.getPreliminaryAnalysis()));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // Étape 2 — analyse finale par le deuxième LLM avec le texte (potentiellement corrigé)
+    @PostMapping("/{id}/finalize")
+    public ResponseEntity<?> finalize(@PathVariable Long id,
+                                      @RequestBody FinalizeRequest req,
+                                      Authentication authentication) {
+        User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
+
+        return mealPhotoRepository.findById(id)
+                .filter(p -> p.getUser().getId().equals(user.getId()))
+                .map(p -> {
+                    // Sauvegarde du texte corrigé par l'utilisateur
+                    p.setPreliminaryAnalysis(req.correctedAnalysis());
+                    // TODO : remplacer par l'appel Spring AI / LLM 2
+                    p.setFinalAnalysis("Analyse finale IA à venir");
+                    p.setCalories(null);
+                    p.setStatus(MealPhotoStatus.FINALIZED);
+                    mealPhotoRepository.save(p);
+                    return ResponseEntity.ok((Object) toHistoryResponse(p));
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/history")
     public ResponseEntity<List<HistoryResponse>> history(Authentication authentication) {
-        User user = userRepository.findByUsername(authentication.getName())
-                .orElseThrow();
+        User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
 
         List<HistoryResponse> history = mealPhotoRepository
                 .findByUserOrderByUploadedAtDesc(user)
                 .stream()
-                .map(p -> new HistoryResponse(
-                        p.getId(),
-                        p.getFilename(),
-                        p.getUploadedAt(),
-                        p.getAnalysisResult(),
-                        p.getCalories()
-                ))
+                .map(this::toHistoryResponse)
                 .toList();
 
         return ResponseEntity.ok(history);
@@ -84,8 +110,7 @@ public class PhotoController {
 
     @GetMapping("/{id}/image")
     public ResponseEntity<byte[]> image(@PathVariable Long id, Authentication authentication) {
-        User user = userRepository.findByUsername(authentication.getName())
-                .orElseThrow();
+        User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
 
         return mealPhotoRepository.findById(id)
                 .filter(p -> p.getUser().getId().equals(user.getId()))
@@ -93,5 +118,17 @@ public class PhotoController {
                         .contentType(MediaType.parseMediaType(p.getContentType()))
                         .body(p.getImageData()))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    private HistoryResponse toHistoryResponse(MealPhoto p) {
+        return new HistoryResponse(
+                p.getId(),
+                p.getFilename(),
+                p.getUploadedAt(),
+                p.getStatus(),
+                p.getPreliminaryAnalysis(),
+                p.getFinalAnalysis(),
+                p.getCalories()
+        );
     }
 }
