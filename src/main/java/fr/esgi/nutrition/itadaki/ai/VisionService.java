@@ -7,6 +7,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import javax.imageio.ImageIO;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -150,12 +155,36 @@ public class VisionService {
         this.objectMapper = objectMapper;
     }
 
+    private byte[] resizeImage(byte[] imageBytes, int maxSize) {
+        try {
+            BufferedImage img = ImageIO.read(new ByteArrayInputStream(imageBytes));
+            if (img == null) return imageBytes;
+            int w = img.getWidth(), h = img.getHeight();
+            if (w <= maxSize && h <= maxSize) return imageBytes;
+            double scale = Math.min((double) maxSize / w, (double) maxSize / h);
+            int nw = (int) (w * scale), nh = (int) (h * scale);
+            BufferedImage resized = new BufferedImage(nw, nh, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = resized.createGraphics();
+            g.drawImage(img, 0, 0, nw, nh, null);
+            g.dispose();
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            ImageIO.write(resized, "jpg", out);
+            log.info("Image redimensionnée: {}x{} -> {}x{} ({} -> {} bytes)", w, h, nw, nh, imageBytes.length, out.size());
+            return out.toByteArray();
+        } catch (Exception e) {
+            log.warn("Erreur redimensionnement, envoi original: {}", e.getMessage());
+            return imageBytes;
+        }
+    }
+
     public LlavaAnalysis analyzeImage(byte[] imageBytes) {
         if (mockMode) {
             log.info("[MOCK] Returning mock vision analysis");
             return getMockAnalysis();
         }
+        imageBytes = resizeImage(imageBytes, 512);
         String base64 = Base64.getEncoder().encodeToString(imageBytes);
+        log.info("Image: {} bytes raw, {} chars base64", imageBytes.length, base64.length());
         LlavaAnalysis result = callVisionModel(VISION_PROMPT, base64, 2);
         return normalizeAnalysis(result);
     }
@@ -219,17 +248,17 @@ public class VisionService {
             Map<String, Object> options = Map.of(
                     "num_predict", 512,
                     "temperature", 0.1,
-                    "num_ctx", 1024
+                    "num_ctx", 4096
             );
             Map<String, Object> body = new HashMap<>();
             body.put("model", llavaModel);
             body.put("prompt", prompt);
             body.put("images", List.of(base64Image));
             body.put("stream", false);
-            body.put("format", "json");
             body.put("options", options);
 
-            log.debug("Appel vision model={}", llavaModel);
+            String bodyJson = objectMapper.writeValueAsString(body);
+            log.info("Appel vision model={}, body size={} bytes", llavaModel, bodyJson.length());
             Map<?, ?> response = restTemplate.postForObject(
                     ollamaBaseUrl + "/api/generate", body, Map.class);
 
