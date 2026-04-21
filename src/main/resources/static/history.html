@@ -8,15 +8,6 @@
 </head>
 <body class="bg-light">
 
-    <nav class="navbar navbar-expand-sm navbar-dark">
-        <div class="container" style="max-width:700px">
-            <a class="navbar-brand fw-bold" href="/home.html">Itadaki</a>
-            <div class="d-flex align-items-center gap-3">
-                <a href="/home.html" class="nav-link text-white">Accueil</a>
-                <a href="/stats.html" class="nav-link text-white">Statistiques</a>
-            </div>
-        </div>
-    </nav>
 
     <div class="container py-4" style="max-width:700px">
         <h4 class="mb-3">Historique</h4>
@@ -25,6 +16,7 @@
         <div id="empty" class="text-center text-muted mt-5" style="display:none">Aucune photo téléversée pour l'instant.</div>
     </div>
 
+    <script src="/navbar.js" type="module"></script>
     <script type="module">
         const BADGE = {
             UPLOADED:         { text: 'Uploadé',              cls: 'bg-secondary' },
@@ -39,8 +31,33 @@
             });
         }
 
+        function parseItem(item) {
+            let dishName = item.filename;
+            let summary = '';
+            if (item.finalAnalysis) {
+                try {
+                    const fa = JSON.parse(item.finalAnalysis);
+                    dishName = fa.dish_name ?? dishName;
+                    const parts = [];
+                    if (fa.total_protein_g != null) parts.push(`P: ${fa.total_protein_g}g`);
+                    if (fa.total_fat_g != null) parts.push(`L: ${fa.total_fat_g}g`);
+                    if (fa.total_carbs_g != null) parts.push(`G: ${fa.total_carbs_g}g`);
+                    if (fa.health_score != null) parts.push(`Score: ${fa.health_score}/10`);
+                    summary = parts.join(' · ');
+                    if (fa.advice) summary += `<br><em>${fa.advice}</em>`;
+                } catch {}
+            } else if (item.preliminaryAnalysis) {
+                try {
+                    const pa = JSON.parse(item.preliminaryAnalysis);
+                    dishName = pa.dish_name ?? dishName;
+                    summary = (pa.ingredients ?? []).map(i => i.name).join(', ');
+                } catch {}
+            }
+            return { dishName, summary };
+        }
+
         async function loadHistory() {
-            const res = await fetch('/api/photos/history');
+            const res = await fetch('/api/photos/history', { credentials: 'include' });
             if (!res.ok) { globalThis.location.href = '/login.html'; return; }
 
             const items = await res.json();
@@ -56,8 +73,8 @@
             }
 
             items.forEach(item => {
-                const badge    = BADGE[item.status] ?? { text: item.status, cls: 'bg-secondary' };
-                const analysis = item.finalAnalysis ?? item.preliminaryAnalysis;
+                const badge = BADGE[item.status] ?? { text: item.status, cls: 'bg-secondary' };
+                const { dishName, summary } = parseItem(item);
 
                 const div = document.createElement('div');
                 div.className = 'card mb-3';
@@ -67,7 +84,7 @@
                              style="width:120px;height:90px;object-fit:cover;border-radius:6px;flex-shrink:0;">
                         <div class="flex-grow-1">
                             <div class="d-flex justify-content-between align-items-start mb-1">
-                                <h6 class="mb-0">${item.filename}</h6>
+                                <h6 class="mb-0">${dishName}</h6>
                                 <div class="d-flex align-items-center gap-2">
                                     <span class="badge ${badge.cls}">${badge.text}</span>
                                     <button class="btn btn-outline-danger btn-sm btn-delete">Supprimer</button>
@@ -77,8 +94,8 @@
                                 <small class="text-muted text-nowrap">Date du repas :</small>
                                 <input type="date" class="form-control form-control-sm input-meal-date" style="width:auto" value="${item.mealDate}">
                             </div>
-                            ${analysis
-                                ? `<p class="small mb-1">${analysis}</p>`
+                            ${summary
+                                ? `<p class="small mb-1">${summary}</p>`
                                 : `<p class="small text-muted fst-italic mb-1">Analyse en attente…</p>`
                             }
                             <div class="${item.calories == null ? 'text-muted small fst-italic' : 'fw-bold text-primary'}">
@@ -90,13 +107,14 @@
 
                 div.querySelector('.btn-delete').addEventListener('click', async () => {
                     if (!confirm(`Supprimer "${item.filename}" ?`)) return;
-                    const res = await fetch(`/api/photos/${item.id}`, { method: 'DELETE' });
+                    const res = await fetch(`/api/photos/${item.id}`, { method: 'DELETE', credentials: 'include' });
                     if (res.ok) div.remove();
                 });
 
                 div.querySelector('.input-meal-date').addEventListener('change', async (e) => {
                     await fetch(`/api/photos/${item.id}/meal-date`, {
                         method: 'PATCH',
+                        credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ mealDate: e.target.value })
                     });

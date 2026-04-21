@@ -1,5 +1,12 @@
 package fr.esgi.nutrition.itadaki.photo;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import fr.esgi.nutrition.itadaki.ai.CalorieService;
+import fr.esgi.nutrition.itadaki.ai.FoodAnalysisResult;
+import fr.esgi.nutrition.itadaki.ai.IngredientDto;
+import fr.esgi.nutrition.itadaki.ai.LlavaAnalysis;
+import fr.esgi.nutrition.itadaki.ai.RagService;
+import fr.esgi.nutrition.itadaki.ai.VisionService;
 import fr.esgi.nutrition.itadaki.user.User;
 import fr.esgi.nutrition.itadaki.user.UserRepository;
 import java.io.IOException;
@@ -35,6 +42,10 @@ public class PhotoController {
 
     private final MealPhotoRepository mealPhotoRepository;
     private final UserRepository userRepository;
+    private final VisionService visionService;
+    private final RagService ragService;
+    private final CalorieService calorieService;
+    private final ObjectMapper objectMapper;
 
     @PostMapping("/upload")
     public ResponseEntity<Object> upload(@RequestParam("file") MultipartFile file,
@@ -62,7 +73,7 @@ public class PhotoController {
         return ResponseEntity.ok(new PhotoUploadResponse(saved.getId(), saved.getFilename(), saved.getUploadedAt()));
     }
 
-    // Étape 1 — analyse par le premier LLM (à implémenter par l'équipe IA)
+    // Étape 1 — analyse visuelle par qwen2.5vl
     @PostMapping("/{id}/analyze")
     public ResponseEntity<Object> analyze(@PathVariable Long id, Authentication authentication) {
         User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
@@ -70,8 +81,12 @@ public class PhotoController {
         return mealPhotoRepository.findById(id)
                 .filter(p -> p.getUser().getId().equals(user.getId()))
                 .map(p -> {
-                    // Remplacer par l'appel Spring AI / LLM 1
-                    p.setPreliminaryAnalysis("Analyse IA à venir");
+                    LlavaAnalysis analysis = visionService.analyzeImage(p.getImageData());
+                    try {
+                        p.setPreliminaryAnalysis(objectMapper.writeValueAsString(analysis));
+                    } catch (Exception e) {
+                        p.setPreliminaryAnalysis("{\"dish_name\":\"Inconnu\",\"ingredients\":[]}");
+                    }
                     p.setStatus(MealPhotoStatus.PRELIMINARY_DONE);
                     mealPhotoRepository.save(p);
                     return ResponseEntity.ok((Object) new AnalysisResponse(p.getId(), p.getPreliminaryAnalysis()));
@@ -79,7 +94,7 @@ public class PhotoController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // Étape 2 — analyse finale par le deuxième LLM avec le texte (potentiellement corrigé)
+    // Étape 2 — enrichissement RAG + synthèse
     @PostMapping("/{id}/finalize")
     public ResponseEntity<Object> finalizeAnalysis(@PathVariable Long id,
                                       @RequestBody FinalizeRequest req,
@@ -89,11 +104,28 @@ public class PhotoController {
         return mealPhotoRepository.findById(id)
                 .filter(p -> p.getUser().getId().equals(user.getId()))
                 .map(p -> {
-                    // Sauvegarde du texte corrigé par l'utilisateur
-                    p.setPreliminaryAnalysis(req.correctedAnalysis());
-                    // Remplacer par l'appel Spring AI / LLM 2
-                    p.setFinalAnalysis("Analyse finale IA à venir");
-                    p.setCalories(500);
+                    String jsonToParse = (req.correctedAnalysis() != null && !req.correctedAnalysis().isBlank())
+                            ? req.correctedAnalysis() : p.getPreliminaryAnalysis();
+
+                    LlavaAnalysis llavaAnalysis;
+                    try {
+                        llavaAnalysis = objectMapper.readValue(jsonToParse, LlavaAnalysis.class);
+                    } catch (Exception e) {
+                        return ResponseEntity.badRequest()
+                                .body((Object) "Analyse préliminaire invalide ou manquante");
+                    }
+
+                    List<IngredientDto> ingredients = llavaAnalysis.getIngredients();
+                    ragService.enrichWithNutrition(ingredients);
+
+                    FoodAnalysisResult result = calorieService.synthesize(llavaAnalysis, ingredients);
+
+                    try {
+                        p.setFinalAnalysis(objectMapper.writeValueAsString(result));
+                    } catch (Exception e) {
+                        p.setFinalAnalysis("{}");
+                    }
+                    p.setCalories(result.getTotalCalories());
                     p.setStatus(MealPhotoStatus.FINALIZED);
                     mealPhotoRepository.save(p);
                     return ResponseEntity.ok((Object) toHistoryResponse(p));
@@ -104,20 +136,14 @@ public class PhotoController {
     @GetMapping("/history")
     public ResponseEntity<List<HistoryResponse>> history(Authentication authentication) {
         User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
-
-        List<HistoryResponse> history = mealPhotoRepository
-                .findByUserOrderByUploadedAtDesc(user)
-                .stream()
-                .map(this::toHistoryResponse)
-                .toList();
-
-        return ResponseEntity.ok(history);
+        return ResponseEntity.ok(
+                mealPhotoRepository.findByUserOrderByUploadedAtDesc(user)
+                        .stream().map(this::toHistoryResponse).toList());
     }
 
     @GetMapping("/{id}/image")
     public ResponseEntity<byte[]> image(@PathVariable Long id, Authentication authentication) {
         User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
-
         return mealPhotoRepository.findById(id)
                 .filter(p -> p.getUser().getId().equals(user.getId()))
                 .map(p -> ResponseEntity.ok()
@@ -129,7 +155,6 @@ public class PhotoController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id, Authentication authentication) {
         User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
-
         return mealPhotoRepository.findById(id)
                 .filter(p -> p.getUser().getId().equals(user.getId()))
                 .<ResponseEntity<Void>>map(p -> {
@@ -144,7 +169,6 @@ public class PhotoController {
                                                   @RequestBody MealDateRequest req,
                                                   Authentication authentication) {
         User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
-
         return mealPhotoRepository.findById(id)
                 .filter(p -> p.getUser().getId().equals(user.getId()))
                 .map(p -> {
@@ -158,34 +182,22 @@ public class PhotoController {
     @GetMapping("/stats/daily")
     public ResponseEntity<List<DailyCaloriesResponse>> dailyStats(Authentication authentication) {
         User user = userRepository.findByUsername(authentication.getName()).orElseThrow();
-
         List<DailyCaloriesResponse> result = mealPhotoRepository
-                .findByUserOrderByUploadedAtDesc(user)
-                .stream()
+                .findByUserOrderByUploadedAtDesc(user).stream()
                 .filter(p -> p.getStatus() == MealPhotoStatus.FINALIZED)
                 .collect(Collectors.groupingBy(
                         p -> (p.getMealDate() != null ? p.getMealDate() : p.getUploadedAt().toLocalDate()).toString(),
-                        Collectors.summingInt(p -> p.getCalories() != null ? p.getCalories() : 0)
-                ))
+                        Collectors.summingInt(p -> p.getCalories() != null ? p.getCalories() : 0)))
                 .entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .map(e -> new DailyCaloriesResponse(e.getKey(), e.getValue()))
                 .toList();
-
         return ResponseEntity.ok(result);
     }
 
     private HistoryResponse toHistoryResponse(MealPhoto p) {
         LocalDate mealDate = p.getMealDate() != null ? p.getMealDate() : p.getUploadedAt().toLocalDate();
-        return new HistoryResponse(
-                p.getId(),
-                p.getFilename(),
-                p.getUploadedAt(),
-                mealDate,
-                p.getStatus(),
-                p.getPreliminaryAnalysis(),
-                p.getFinalAnalysis(),
-                p.getCalories()
-        );
+        return new HistoryResponse(p.getId(), p.getFilename(), p.getUploadedAt(), mealDate,
+                p.getStatus(), p.getPreliminaryAnalysis(), p.getFinalAnalysis(), p.getCalories());
     }
 }

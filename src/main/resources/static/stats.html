@@ -8,15 +8,6 @@
 </head>
 <body class="bg-light">
 
-    <nav class="navbar navbar-expand-sm navbar-dark">
-        <div class="container" style="max-width:700px">
-            <a class="navbar-brand fw-bold" href="/home.html">Itadaki</a>
-            <div class="d-flex align-items-center gap-3">
-                <a href="/home.html" class="nav-link text-white">Accueil</a>
-                <a href="/history.html" class="nav-link text-white">Historique</a>
-            </div>
-        </div>
-    </nav>
 
     <div class="container py-4" style="max-width:700px">
         <h4 class="mb-3">Évolution des calories</h4>
@@ -59,9 +50,10 @@
         </div>
     </div>
 
+    <script src="/navbar.js" type="module"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <script type="module">
-        const res = await fetch('/api/photos/stats/daily');
+        const res = await fetch('/api/photos/stats/daily', { credentials: 'include' });
         if (res.ok) {
 
         const data = await res.json();
