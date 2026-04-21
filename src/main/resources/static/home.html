@@ -58,11 +58,54 @@
         <!-- Étape 3 : résultat -->
         <div class="card mb-3" id="step-result" style="display:none">
             <div class="card-body">
-                <h5 class="card-title">Résultat</h5>
-                <div class="alert alert-success mb-3">
-                    <div id="finalAnalysisText"></div>
-                    <div class="fs-4 fw-bold mt-2" id="caloriesText"></div>
+                <h5 class="card-title" id="resultDishName">Résultat</h5>
+                <img id="resultPreview" class="img-fluid rounded mb-3" alt="Plat analysé" style="display:none; max-height:220px;">
+
+                <div class="row g-2 mb-3 text-center">
+                    <div class="col-3">
+                        <div class="card h-100"><div class="card-body p-2">
+                            <div class="fs-5 fw-bold text-primary" id="resultCalories">—</div>
+                            <div class="text-muted small">kcal</div>
+                        </div></div>
+                    </div>
+                    <div class="col-3">
+                        <div class="card h-100"><div class="card-body p-2">
+                            <div class="fs-5 fw-bold" id="resultProtein">—</div>
+                            <div class="text-muted small">Protéines</div>
+                        </div></div>
+                    </div>
+                    <div class="col-3">
+                        <div class="card h-100"><div class="card-body p-2">
+                            <div class="fs-5 fw-bold" id="resultFat">—</div>
+                            <div class="text-muted small">Lipides</div>
+                        </div></div>
+                    </div>
+                    <div class="col-3">
+                        <div class="card h-100"><div class="card-body p-2">
+                            <div class="fs-5 fw-bold" id="resultCarbs">—</div>
+                            <div class="text-muted small">Glucides</div>
+                        </div></div>
+                    </div>
                 </div>
+
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="fw-semibold">Score santé :</span>
+                    <div class="progress flex-grow-1" style="height:20px;">
+                        <div class="progress-bar" id="resultScoreBar" role="progressbar" style="width:0%"></div>
+                    </div>
+                    <span class="fw-bold" id="resultScore">—</span>
+                </div>
+
+                <div id="resultAdvice" class="alert alert-info small mb-3" style="display:none"></div>
+
+                <div id="resultIngredients" class="mb-3" style="display:none">
+                    <p class="fw-semibold mb-1 small">Détail des ingrédients :</p>
+                    <table class="table table-sm small mb-0">
+                        <thead><tr><th>Ingrédient</th><th>Poids</th><th>kcal</th></tr></thead>
+                        <tbody id="resultIngredientsBody"></tbody>
+                    </table>
+                </div>
+
                 <button class="btn btn-primary" id="newPhotoBtn">Analyser un autre plat</button>
             </div>
         </div>
@@ -155,7 +198,7 @@
             if (!file) { uploadError.textContent = "Sélectionne une image d'abord"; return; }
 
             uploadBtn.disabled = true;
-            uploadInfo.textContent = 'Envoi en cours…';
+            uploadInfo.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Envoi en cours…';
             uploadError.textContent = '';
 
             const formData = new FormData();
@@ -167,7 +210,7 @@
                 const uploaded = await uploadRes.json();
                 currentPhotoId = uploaded.id;
 
-                uploadInfo.textContent = 'Analyse en cours…';
+                uploadInfo.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Analyse IA en cours…';
                 const analyzeRes = await fetch(`/api/photos/${currentPhotoId}/analyze`, { method: 'POST' });
                 if (!analyzeRes.ok) { uploadError.textContent = 'Erreur lors de l\'analyse'; uploadBtn.disabled = false; uploadInfo.textContent = ''; return; }
                 const analyzed = await analyzeRes.json();
@@ -190,6 +233,7 @@
             if (!parsed.dish_name) { correctionError.textContent = 'Le nom du plat ne peut pas être vide'; return; }
 
             confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Calcul en cours…';
             correctionError.textContent = '';
 
             try {
@@ -199,13 +243,48 @@
                     body: JSON.stringify({ correctedAnalysis: corrected })
                 });
 
-                if (!res.ok) { correctionError.textContent = 'Erreur lors du calcul des calories'; confirmBtn.disabled = false; return; }
+                if (!res.ok) { correctionError.textContent = 'Erreur lors du calcul des calories'; confirmBtn.disabled = false; confirmBtn.textContent = 'Confirmer et calculer les calories'; return; }
                 const result = await res.json();
 
-                document.getElementById('finalAnalysisText').textContent = result.finalAnalysis ?? result.preliminaryAnalysis;
-                document.getElementById('caloriesText').textContent = result.calories == null
-                    ? 'Calories à venir'
-                    : `${result.calories} kcal`;
+                // Parser finalAnalysis (JSON sérialisé de FoodAnalysisResult)
+                let fa = {};
+                try { fa = JSON.parse(result.finalAnalysis); } catch {}
+
+                document.getElementById('resultDishName').textContent = fa.dish_name ?? 'Résultat';
+                document.getElementById('resultCalories').textContent = fa.total_calories ?? result.calories ?? '—';
+                document.getElementById('resultProtein').textContent = fa.total_protein_g != null ? fa.total_protein_g + ' g' : '—';
+                document.getElementById('resultFat').textContent = fa.total_fat_g != null ? fa.total_fat_g + ' g' : '—';
+                document.getElementById('resultCarbs').textContent = fa.total_carbs_g != null ? fa.total_carbs_g + ' g' : '—';
+
+                const score = fa.health_score ?? 0;
+                const scoreBar = document.getElementById('resultScoreBar');
+                scoreBar.style.width = (score * 10) + '%';
+                scoreBar.className = 'progress-bar ' + (score >= 7 ? 'bg-success' : score >= 4 ? 'bg-warning' : 'bg-danger');
+                document.getElementById('resultScore').textContent = score + '/10';
+
+                if (fa.advice) {
+                    const adviceEl = document.getElementById('resultAdvice');
+                    adviceEl.textContent = fa.advice;
+                    adviceEl.style.display = 'block';
+                }
+
+                if (fa.ingredients && fa.ingredients.length) {
+                    const tbody = document.getElementById('resultIngredientsBody');
+                    tbody.innerHTML = '';
+                    fa.ingredients.forEach(ing => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td>${ing.name}</td><td>${ing.estimated_weight_g ?? '—'} g</td><td>${ing.calories_total != null ? Math.round(ing.calories_total) : '—'}</td>`;
+                        tbody.appendChild(tr);
+                    });
+                    document.getElementById('resultIngredients').style.display = 'block';
+                }
+
+                // Garder l'image visible
+                if (preview.src) {
+                    const rp = document.getElementById('resultPreview');
+                    rp.src = preview.src;
+                    rp.style.display = 'block';
+                }
 
                 document.getElementById('step-correction').style.display = 'none';
                 document.getElementById('step-result').style.display = 'block';
@@ -224,9 +303,13 @@
             uploadBtn.disabled = false;
             uploadInfo.textContent = '';
             confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Confirmer et calculer les calories';
             correctionError.textContent = '';
             ingredientsList.innerHTML = '';
             document.getElementById('dishNameInput').value = '';
+            document.getElementById('resultPreview').style.display = 'none';
+            document.getElementById('resultAdvice').style.display = 'none';
+            document.getElementById('resultIngredients').style.display = 'none';
             document.getElementById('step-result').style.display = 'none';
             document.getElementById('step-upload').style.display = 'block';
         });
