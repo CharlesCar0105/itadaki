@@ -37,11 +37,13 @@ public class VisionService {
             Féculents : riz blanc, riz à sushi, pâtes, pain, pain grillé, pâte à pizza, pomme de terre, purée de pommes de terre
             Viandes : poulet, boeuf, porc, jambon, bacon, saucisse, steak haché
             Poissons : saumon, thon, crevette
-            Légumes : tomate, salade verte, concombre, carotte, oignon, poivron, brocoli, champignon, courgette, avocat
-            Fromages : mozzarella, gruyère, parmesan, fromage
+            Légumes : tomate, salade verte, concombre, carotte, oignon, poivron, brocoli, champignon, courgette, avocat, épinards, maïs, petits pois, haricots verts
+            Fromages : mozzarella, gruyère, parmesan, fromage, fromage râpé, fromage fondu
             Oeufs : oeuf au plat, oeuf brouillé
             Charcuterie : pepperoni, salami
             Sushi : riz à sushi, nori, wasabi, gingembre mariné
+            Sauces & matières grasses : sauce tomate, crème fraîche, crème liquide, béchamel, sauce soja, sauce curry, sauce bolognaise, mayonnaise, ketchup, moutarde, vinaigrette, huile d'olive, beurre, pesto, sauce barbecue, sauce fromagère
+            Légumineuses & autres : lentilles, pois chiches, haricots rouges, tofu, oeuf dur
 
             Format de réponse :
             {"dish_name":"...","ingredients":[{"name":"...","estimated_weight_g":100,"confidence":0.9}],"portion_size":"normale","overall_confidence":0.85}
@@ -85,7 +87,43 @@ public class VisionService {
             Map.entry("pork",              "porc"),
             Map.entry("nori",              "nori"),
             Map.entry("wasabi",            "wasabi"),
-            Map.entry("ginger",            "gingembre mariné")
+            Map.entry("ginger",            "gingembre mariné"),
+            // Sauces & matières grasses
+            Map.entry("cream",             "crème fraîche"),
+            Map.entry("heavy cream",       "crème liquide"),
+            Map.entry("whipping cream",    "crème liquide"),
+            Map.entry("sour cream",        "crème fraîche"),
+            Map.entry("tomato sauce",      "sauce tomate"),
+            Map.entry("bolognese",         "sauce bolognaise"),
+            Map.entry("bechamel",          "béchamel"),
+            Map.entry("béchamel sauce",    "béchamel"),
+            Map.entry("white sauce",       "béchamel"),
+            Map.entry("curry sauce",       "sauce curry"),
+            Map.entry("soy sauce",         "sauce soja"),
+            Map.entry("mayonnaise",        "mayonnaise"),
+            Map.entry("ketchup",           "ketchup"),
+            Map.entry("mustard",           "moutarde"),
+            Map.entry("dressing",          "vinaigrette"),
+            Map.entry("olive oil",         "huile d'olive"),
+            Map.entry("oil",               "huile d'olive"),
+            Map.entry("butter",            "beurre"),
+            Map.entry("pesto",             "pesto"),
+            Map.entry("bbq sauce",         "sauce barbecue"),
+            Map.entry("barbecue sauce",    "sauce barbecue"),
+            Map.entry("cheese sauce",      "sauce fromagère"),
+            // Légumes supplémentaires
+            Map.entry("spinach",           "épinards"),
+            Map.entry("corn",              "maïs"),
+            Map.entry("peas",              "petits pois"),
+            Map.entry("green beans",       "haricots verts"),
+            Map.entry("carrots",           "carotte"),
+            // Légumineuses
+            Map.entry("lentils",           "lentilles"),
+            Map.entry("chickpeas",         "pois chiches"),
+            Map.entry("kidney beans",      "haricots rouges"),
+            Map.entry("tofu",              "tofu"),
+            Map.entry("hard boiled egg",   "oeuf dur"),
+            Map.entry("boiled egg",        "oeuf dur")
     );
 
     private static final List<String> COOKING_PREFIXES = List.of(
