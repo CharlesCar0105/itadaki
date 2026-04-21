@@ -30,7 +30,9 @@ public class AuthController {
     private final SecurityContextRepository securityContextRepository;
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody RegisterRequest req) {
+    public ResponseEntity<String> register(@RequestBody RegisterRequest req,
+                                           HttpServletRequest request,
+                                           HttpServletResponse response) {
         if (req.username() == null || req.username().isBlank()
                 || req.password() == null || req.password().length() < 4) {
             return ResponseEntity.badRequest().body("Invalid username or password");
@@ -43,6 +45,15 @@ public class AuthController {
                 .password(passwordEncoder.encode(req.password()))
                 .build();
         userRepository.save(user);
+
+        Authentication auth = authenticationManager.authenticate(
+                UsernamePasswordAuthenticationToken.unauthenticated(req.username(), req.password())
+        );
+        SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
+        securityContext.setAuthentication(auth);
+        SecurityContextHolder.setContext(securityContext);
+        securityContextRepository.saveContext(securityContext, request, response);
+
         return ResponseEntity.ok("User registered");
     }
 

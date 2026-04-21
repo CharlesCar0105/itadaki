@@ -35,13 +35,14 @@
                 const res = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({ username, password })
                 });
                 const text = await res.text();
                 if (res.ok) {
                     msg.className = 'mt-3 text-center small text-success';
                     msg.textContent = 'Inscription réussie ! Redirection...';
-                    setTimeout(() => globalThis.location.href = '/login.html', 1000);
+                    setTimeout(() => globalThis.location.href = '/home.html', 1000);
                 } else {
                     msg.className = 'mt-3 text-center small text-danger';
                     msg.textContent = text;
