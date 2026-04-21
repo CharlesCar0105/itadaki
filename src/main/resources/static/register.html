@@ -26,6 +26,9 @@
     </div>
 
     <script>
+        fetch('/api/auth/me', { credentials: 'include' })
+            .then(r => { if (r.ok) globalThis.location.href = '/home.html'; });
+
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('username').value;

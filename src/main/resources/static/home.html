@@ -8,16 +8,6 @@
 </head>
 <body class="bg-light">
 
-    <nav class="navbar navbar-expand-sm navbar-dark">
-        <div class="container" style="max-width:640px">
-            <span class="navbar-brand fw-bold">Itadaki</span>
-            <div class="d-flex align-items-center gap-3">
-                <a href="/history.html" class="nav-link text-white">Historique</a>
-                <a href="/stats.html" class="nav-link text-white">Statistiques</a>
-                <button class="btn btn-outline-light btn-sm" id="logoutBtn">Déconnexion</button>
-            </div>
-        </div>
-    </nav>
 
     <div class="container py-4" style="max-width:640px">
 
@@ -112,6 +102,7 @@
 
     </div>
 
+    <script src="/navbar.js" defer></script>
     <script>
         let currentPhotoId = null;
 
@@ -314,10 +305,6 @@
             document.getElementById('step-upload').style.display = 'block';
         });
 
-        document.getElementById('logoutBtn').addEventListener('click', async () => {
-            await fetch('/api/auth/logout', { method: 'POST' });
-            globalThis.location.href = '/login.html';
-        });
     </script>
 </body>
 </html>

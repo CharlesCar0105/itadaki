@@ -8,15 +8,6 @@
 </head>
 <body class="bg-light">
 
-    <nav class="navbar navbar-expand-sm navbar-dark">
-        <div class="container" style="max-width:700px">
-            <a class="navbar-brand fw-bold" href="/home.html">Itadaki</a>
-            <div class="d-flex align-items-center gap-3">
-                <a href="/home.html" class="nav-link text-white">Accueil</a>
-                <a href="/stats.html" class="nav-link text-white">Statistiques</a>
-            </div>
-        </div>
-    </nav>
 
     <div class="container py-4" style="max-width:700px">
         <h4 class="mb-3">Historique</h4>
@@ -25,6 +16,7 @@
         <div id="empty" class="text-center text-muted mt-5" style="display:none">Aucune photo téléversée pour l'instant.</div>
     </div>
 
+    <script src="/navbar.js" defer></script>
     <script type="module">
         const BADGE = {
             UPLOADED:         { text: 'Uploadé',              cls: 'bg-secondary' },
@@ -40,7 +32,7 @@
         }
 
         async function loadHistory() {
-            const res = await fetch('/api/photos/history');
+            const res = await fetch('/api/photos/history', { credentials: 'include' });
             if (!res.ok) { globalThis.location.href = '/login.html'; return; }
 
             const items = await res.json();
@@ -112,13 +104,14 @@
 
                 div.querySelector('.btn-delete').addEventListener('click', async () => {
                     if (!confirm(`Supprimer "${item.filename}" ?`)) return;
-                    const res = await fetch(`/api/photos/${item.id}`, { method: 'DELETE' });
+                    const res = await fetch(`/api/photos/${item.id}`, { method: 'DELETE', credentials: 'include' });
                     if (res.ok) div.remove();
                 });
 
                 div.querySelector('.input-meal-date').addEventListener('change', async (e) => {
                     await fetch(`/api/photos/${item.id}/meal-date`, {
                         method: 'PATCH',
+                        credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ mealDate: e.target.value })
                     });
