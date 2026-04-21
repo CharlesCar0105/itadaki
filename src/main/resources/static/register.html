@@ -25,9 +25,11 @@
         </div>
     </div>
 
+    <script type="module">
+        const r = await fetch('/api/auth/me', { credentials: 'include' });
+        if (r.ok) globalThis.location.href = '/home.html';
+    </script>
     <script>
-        fetch('/api/auth/me', { credentials: 'include' })
-            .then(r => { if (r.ok) globalThis.location.href = '/home.html'; });
 
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();

@@ -16,7 +16,7 @@
         <div id="empty" class="text-center text-muted mt-5" style="display:none">Aucune photo téléversée pour l'instant.</div>
     </div>
 
-    <script src="/navbar.js" defer></script>
+    <script src="/navbar.js" type="module"></script>
     <script type="module">
         const BADGE = {
             UPLOADED:         { text: 'Uploadé',              cls: 'bg-secondary' },
@@ -29,6 +29,31 @@
                 day: '2-digit', month: '2-digit', year: 'numeric',
                 hour: '2-digit', minute: '2-digit'
             });
+        }
+
+        function parseItem(item) {
+            let dishName = item.filename;
+            let summary = '';
+            if (item.finalAnalysis) {
+                try {
+                    const fa = JSON.parse(item.finalAnalysis);
+                    dishName = fa.dish_name ?? dishName;
+                    const parts = [];
+                    if (fa.total_protein_g != null) parts.push(`P: ${fa.total_protein_g}g`);
+                    if (fa.total_fat_g != null) parts.push(`L: ${fa.total_fat_g}g`);
+                    if (fa.total_carbs_g != null) parts.push(`G: ${fa.total_carbs_g}g`);
+                    if (fa.health_score != null) parts.push(`Score: ${fa.health_score}/10`);
+                    summary = parts.join(' · ');
+                    if (fa.advice) summary += `<br><em>${fa.advice}</em>`;
+                } catch {}
+            } else if (item.preliminaryAnalysis) {
+                try {
+                    const pa = JSON.parse(item.preliminaryAnalysis);
+                    dishName = pa.dish_name ?? dishName;
+                    summary = (pa.ingredients ?? []).map(i => i.name).join(', ');
+                } catch {}
+            }
+            return { dishName, summary };
         }
 
         async function loadHistory() {
@@ -49,29 +74,7 @@
 
             items.forEach(item => {
                 const badge = BADGE[item.status] ?? { text: item.status, cls: 'bg-secondary' };
-
-                // Parser les analyses JSON
-                let dishName = item.filename;
-                let summary = '';
-                if (item.finalAnalysis) {
-                    try {
-                        const fa = JSON.parse(item.finalAnalysis);
-                        dishName = fa.dish_name ?? dishName;
-                        const parts = [];
-                        if (fa.total_protein_g != null) parts.push(`P: ${fa.total_protein_g}g`);
-                        if (fa.total_fat_g != null) parts.push(`L: ${fa.total_fat_g}g`);
-                        if (fa.total_carbs_g != null) parts.push(`G: ${fa.total_carbs_g}g`);
-                        if (fa.health_score != null) parts.push(`Score: ${fa.health_score}/10`);
-                        summary = parts.join(' · ');
-                        if (fa.advice) summary += `<br><em>${fa.advice}</em>`;
-                    } catch {}
-                } else if (item.preliminaryAnalysis) {
-                    try {
-                        const pa = JSON.parse(item.preliminaryAnalysis);
-                        dishName = pa.dish_name ?? dishName;
-                        summary = (pa.ingredients ?? []).map(i => i.name).join(', ');
-                    } catch {}
-                }
+                const { dishName, summary } = parseItem(item);
 
                 const div = document.createElement('div');
                 div.className = 'card mb-3';

@@ -80,9 +80,7 @@
 
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <span class="fw-semibold">Score santé :</span>
-                    <div class="progress flex-grow-1" style="height:20px;">
-                        <div class="progress-bar" id="resultScoreBar" role="progressbar" style="width:0%"></div>
-                    </div>
+                    <progress id="resultScoreBar" class="flex-grow-1" value="0" max="100" style="height:20px;"></progress>
                     <span class="fw-bold" id="resultScore">—</span>
                 </div>
 
@@ -102,7 +100,7 @@
 
     </div>
 
-    <script src="/navbar.js" defer></script>
+    <script src="/navbar.js" type="module"></script>
     <script>
         let currentPhotoId = null;
 
@@ -243,14 +241,18 @@
 
                 document.getElementById('resultDishName').textContent = fa.dish_name ?? 'Résultat';
                 document.getElementById('resultCalories').textContent = fa.total_calories ?? result.calories ?? '—';
-                document.getElementById('resultProtein').textContent = fa.total_protein_g != null ? fa.total_protein_g + ' g' : '—';
-                document.getElementById('resultFat').textContent = fa.total_fat_g != null ? fa.total_fat_g + ' g' : '—';
-                document.getElementById('resultCarbs').textContent = fa.total_carbs_g != null ? fa.total_carbs_g + ' g' : '—';
+                document.getElementById('resultProtein').textContent = fa.total_protein_g == null ? '—' : fa.total_protein_g + ' g';
+                document.getElementById('resultFat').textContent = fa.total_fat_g == null ? '—' : fa.total_fat_g + ' g';
+                document.getElementById('resultCarbs').textContent = fa.total_carbs_g == null ? '—' : fa.total_carbs_g + ' g';
 
                 const score = fa.health_score ?? 0;
                 const scoreBar = document.getElementById('resultScoreBar');
-                scoreBar.style.width = (score * 10) + '%';
-                scoreBar.className = 'progress-bar ' + (score >= 7 ? 'bg-success' : score >= 4 ? 'bg-warning' : 'bg-danger');
+                scoreBar.value = score * 10;
+                let scoreColor;
+                if (score >= 7) scoreColor = '#198754';
+                else if (score >= 4) scoreColor = '#ffc107';
+                else scoreColor = '#dc3545';
+                scoreBar.style.accentColor = scoreColor;
                 document.getElementById('resultScore').textContent = score + '/10';
 
                 if (fa.advice) {
@@ -264,7 +266,7 @@
                     tbody.innerHTML = '';
                     fa.ingredients.forEach(ing => {
                         const tr = document.createElement('tr');
-                        tr.innerHTML = `<td>${ing.name}</td><td>${ing.estimated_weight_g ?? '—'} g</td><td>${ing.calories_total != null ? Math.round(ing.calories_total) : '—'}</td>`;
+                        tr.innerHTML = `<td>${ing.name}</td><td>${ing.estimated_weight_g ?? '—'} g</td><td>${ing.calories_total == null ? '—' : Math.round(ing.calories_total)}</td>`;
                         tbody.appendChild(tr);
                     });
                     document.getElementById('resultIngredients').style.display = 'block';
